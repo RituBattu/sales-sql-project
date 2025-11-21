@@ -1,81 +1,63 @@
-import sys
-import os
+import re
 
-# Check input file
-# Hard-coded SQL file name
-input_file = r"C:\Users\erpr2\OneDrive\Documents\sales-sql-project\sales_project.sql.sql"
+# input file
+input_file = 'sales_project.sql.sql'
 
+# Output files
+table_file = "table.sql"
+inserts_file = "inserts.sql"
+views_file = "views.sql"
+theory_file = "theory.sql"   # all comments and explanation
 
-if not os.path.exists(input_file):
-    print("File not found:", input_file)
-    sys.exit(1)
-
-# Containers
-schema = []
-data = []
-views = []
-analysis = []
-misc = []
-
-current_block = []
-current_type = "misc"
-
-def flush_block(block, block_type):
-    if not block:
-        return
-    if block_type == "schema":
-        schema.extend(block)
-    elif block_type == "data":
-        data.extend(block)
-    elif block_type == "views":
-        views.extend(block)
-    elif block_type == "analysis":
-        analysis.extend(block)
-    else:
-        misc.extend(block)
+# read the input file
 
 with open(input_file, "r", encoding="utf-8") as f:
-    for line in f:
-        lower = line.strip().lower()
+    sql = f.read()
 
-        # Detect beginning of new block
-        if lower.startswith("create table"):
-            flush_block(current_block, current_type)
-            current_block = [line]
-            current_type = "schema"
+# Split by semicolon but keep the semicolon
+statements = re.split(r';\s*', sql)
+statements = [stmt.strip() + ";" for stmt in statements if stmt.strip()]
 
-        elif lower.startswith("insert into"):
-            flush_block(current_block, current_type)
-            current_block = [line]
-            current_type = "data"
 
-        elif lower.startswith("create view"):
-            flush_block(current_block, current_type)
-            current_block = [line]
-            current_type = "views"
+#  Prepare container
 
-        elif lower.startswith("select"):
-            flush_block(current_block, current_type)
-            current_block = [line]
-            current_type = "analysis"
+table = []
+insert = []
+views = []
+theory = []
 
-        else:
-            current_block.append(line)
+for stmt in statements:
+    stmt_lower = stmt.lower()
 
-# Flush leftover block
-flush_block(current_block, current_type)
+    if stmt_lower.startswith("--") or "/*" in stmt_lower:
+        theory.append(stmt)
 
-# File writing helper
-def write_file(name, content):
-    with open(name, "w", encoding="utf-8") as f:
-        f.write("".join(content))
-    print("Created:", name)
+    elif stmt_lower.startswith("create table"):
+        table.append(stmt)
 
-# Write output files
-write_file("01_schema.sql", schema)
-write_file("02_data.sql", data)
-write_file("03_views.sql", views)
-write_file("04_analysis.sql", analysis)
-write_file("99_misc.sql", misc)
+    elif stmt_lower.startswith('insert into'):
+        insert.append(stmt)
 
-print("\nDone! Files created successfully.")
+    elif stmt_lower.startswith("create view"):
+        views.append(stmt)
+
+    else:
+        theory.append(stmt)  #anything unknown goes to this theory 
+
+
+
+     # write files
+    with open(table_file, "w", encoding='utf-8') as f:
+        f.write("\n\n".join(table))
+
+
+    with open(inserts_file, "w", encoding='utf-8') as f:
+        f.write("\n\n".join(insert))           
+
+    with open(views_file, "w", encoding='utf-8') as f:
+        f.write("\n\n".join(views))      
+
+    with open(theory_file, "w", encoding='utf-8') as f:
+        f.write("\n\n".join(theory))
+
+    print("Splitting completes succesfully")          
